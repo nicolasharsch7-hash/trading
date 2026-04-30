@@ -1254,7 +1254,7 @@ def main() -> None:
 
     app = (
         Application.builder()
-        .token(8632469852:AAFPFr_hqoLwXnyqiRtYxoNLsnmDbyHD7o4)
+        .token(BOT_TOKEN)
         .post_init(post_init)
         .build()
     )
