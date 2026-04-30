@@ -1,0 +1,2 @@
+# NEXUS Trading Bot — Dependencias
+python-telegram-bot[job-queue]==21.6
