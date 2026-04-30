@@ -1243,7 +1243,7 @@ async def post_init(app: Application) -> None:
 
 
 def main() -> None:
-    if BOT_TOKEN == "8632469852:AAFPFr_hqoLwXnyqiRtYxoNLsnmDbyHD7o4":
+    if BOT_TOKEN == "TU_TOKEN_AQUI":
         print("⚠️  Edita BOT_TOKEN antes de ejecutar.")
         print("    Obtén tu token en @BotFather → /newbot")
         return
