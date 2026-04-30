@@ -28,7 +28,7 @@ from telegram.constants import ParseMode
 # ──────────────────────────────────────────────────────────────
 #  CONFIGURACIÓN PRINCIPAL
 # ──────────────────────────────────────────────────────────────
-BOT_TOKEN = "TU_TOKEN_AQUI"   # Obtén tu token en @BotFather
+BOT_TOKEN = "8632469852:AAFPFr_hqoLwXnyqiRtYxoNLsnmDbyHD7o4"   # Obtén tu token en @BotFather
 ADMIN_IDS = [123456789]        # Tu Telegram user_id numérico
 
 # Credenciales de acceso (estéticas — solo demo)
@@ -1243,7 +1243,7 @@ async def post_init(app: Application) -> None:
 
 
 def main() -> None:
-    if BOT_TOKEN == "TU_TOKEN_AQUI":
+    if BOT_TOKEN == "8632469852:AAFPFr_hqoLwXnyqiRtYxoNLsnmDbyHD7o4":
         print("⚠️  Edita BOT_TOKEN antes de ejecutar.")
         print("    Obtén tu token en @BotFather → /newbot")
         return
@@ -1254,7 +1254,7 @@ def main() -> None:
 
     app = (
         Application.builder()
-        .token(BOT_TOKEN)
+        .token(8632469852:AAFPFr_hqoLwXnyqiRtYxoNLsnmDbyHD7o4)
         .post_init(post_init)
         .build()
     )
