@@ -783,3 +783,514 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                  InlineKeyboardButton("🏠 Menú",        callback_data="back_main")]
             ])
         )
+
+  # ── Portfolio ───────────────────────────────────────────
+    elif data == "menu_portfolio":
+        await q.edit_message_text(portfolio_text(uid),
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📂 Ver Operaciones", callback_data="menu_trades"),
+                 InlineKeyboardButton("🔄 Actualizar",      callback_data="menu_portfolio")],
+                [InlineKeyboardButton("🏠 Menú",            callback_data="back_main")]
+            ])
+        )
+
+    # ── Operaciones abiertas ────────────────────────────────
+    elif data == "menu_trades":
+        await q.edit_message_text(open_trades_text(uid),
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Actualizar",  callback_data="menu_trades"),
+                 InlineKeyboardButton("💰 Nuevo trade", callback_data="menu_execute")],
+                [InlineKeyboardButton("🏠 Menú",        callback_data="back_main")]
+            ])
+        )
+
+    # ── Ejecutar trade ──────────────────────────────────────
+    elif data == "menu_execute":
+        await q.edit_message_text(
+            "*💰 EJECUTAR OPERACIÓN*\n\nSelecciona dirección y activo:",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=execute_trade_kb()
+        )
+
+    elif data.startswith("exec_"):
+        parts = data.split("_")        # exec, long|short, SYM
+        side  = parts[1].upper()
+        sym   = parts[2]
+        info  = ASSETS[sym]
+        _tick()
+        p, _, _ = get_price(sym)
+        sig  = ai_signal(sym)
+        pnl  = add_profit(uid)
+        s    = SESSIONS.get(uid, {})
+        msg  = (
+            f"✅ *OPERACIÓN EJECUTADA*\n\n"
+            f"```\n"
+            f"  Par       : {info['emoji']} {sym}\n"
+            f"  Dirección : {'🟢 LONG' if side=='LONG' else '🔴 SHORT'}\n"
+            f"  Precio    : {fmt_price(sym,p)}\n"
+            f"  TP        : {fmt_price(sym,sig['tp1'])}\n"
+            f"  SL        : {fmt_price(sym,sig['sl'])}\n"
+            f"  Apalancam.: x{random.randint(5,25)}\n"
+            f"  Lote      : {random.uniform(0.01,1.0):.2f}\n"
+            f"\n"
+            f"  ── RESULTADO ───────────────────\n"
+            f"  P&L       : +${pnl:.2f}  ✅\n"
+            f"  Nuevo bal.: ${s.get('balance',0):,.2f}\n"
+            f"  Motor IA  : NEXUS-GPT v3.1\n"
+            f"```\n"
+            f"_Operación cerrada con beneficio\\._"
+        )
+        await q.edit_message_text(msg, parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💰 Otra operación", callback_data="menu_execute"),
+                 InlineKeyboardButton("💼 Portfolio",      callback_data="menu_portfolio")],
+                [InlineKeyboardButton("🏠 Menú",           callback_data="back_main")]
+            ])
+        )
+
+    # ── Mi Cuenta ───────────────────────────────────────────
+    elif data == "menu_account":
+        await q.edit_message_text(account_summary(uid),
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=back_kb()
+        )
+
+    # ── Noticias ────────────────────────────────────────────
+    elif data == "menu_news":
+        headlines = [
+            ("🔥", "Fed mantiene tasas; dólar reacciona al alza"),
+            ("₿",  "Bitcoin supera $68K impulsado por ETF flows récord"),
+            ("📊", "NVIDIA bate expectativas Q1 con ingresos de $26B"),
+            ("🛢", "OPEC+ extiende recortes de producción hasta Q3"),
+            ("🌍", "Tensiones geopolíticas elevan demanda por oro"),
+            ("⚡", "Tesla anuncia planta en México; acción sube 4%"),
+            ("🤖", "Goldman: IA podría añadir $7T al PIB global"),
+            ("📉", "Yen toca mínimos de 34 años frente al dólar"),
+            ("💡", "BlackRock lanza ETF de IA con $2.3B en AUM"),
+            ("🏦", "BCE señala primer recorte de tasas en junio"),
+            ("🪙", "Ethereum EIP-4844 reduce comisiones 90%"),
+            ("🚀", "Solana procesa 65,000 TPS; nuevo récord"),
+        ]
+        lines = ["*📰 MARKET NEWS — LIVE FEED*\n"]
+        for emoji, headline in random.sample(headlines, 6):
+            mins = random.randint(3, 90)
+            lines.append(f"{emoji} *{headline}*\n   _hace {mins} min_\n")
+        lines.append("_Fuente: NEXUS AI · Reuters · Bloomberg · CoinDesk_")
+        await q.edit_message_text(
+            "\n".join(lines), parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Actualizar", callback_data="menu_news"),
+                 InlineKeyboardButton("🏠 Menú",       callback_data="back_main")]
+            ])
+        )
+
+    # ── Rankings ────────────────────────────────────────────
+    elif data == "menu_top":
+        _tick()
+        data_list = [(sym, get_price(sym)[2]) for sym in ASSETS]
+        winners   = sorted(data_list, key=lambda x: x[1], reverse=True)[:5]
+        losers    = sorted(data_list, key=lambda x: x[1])[:5]
+        lines = ["```", "  🏆 TOP 5 GAINERS", "  " + "─" * 36]
+        for sym, pct in winners:
+            pnl = round(random.uniform(8, 450), 2)
+            lines.append(f"  {ASSETS[sym]['emoji']} {sym:<9}  ▲{pct:+.2f}%  +${pnl:.2f}")
+        lines += ["", "  💣 TOP 5 LOSERS", "  " + "─" * 36]
+        for sym, pct in losers:
+            lines.append(f"  {ASSETS[sym]['emoji']} {sym:<9}  ▼{abs(pct):.2f}%")
+        lines.append("```")
+        await q.edit_message_text(
+            "\n".join(lines), parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Actualizar", callback_data="menu_top"),
+                 InlineKeyboardButton("🏠 Menú",       callback_data="back_main")]
+            ])
+        )
+
+    # ── Alertas ─────────────────────────────────────────────
+    elif data == "menu_alerts":
+        await q.edit_message_text(
+            "*🔔 SISTEMA DE ALERTAS*\n\n"
+            "Usa el comando `/alert SÍMBOLO PRECIO`\n\n"
+            "*Ejemplos:*\n"
+            "`/alert BTC 70000`\n"
+            "`/alert ETH 4000`\n"
+            "`/alert XAUUSD 2500`\n"
+            "`/alert NVDA 900`\n\n"
+            "_Recibirás notificación push al cruzar el objetivo\\._",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=back_kb()
+        )
+
+    # ── Ajustes ─────────────────────────────────────────────
+    elif data == "menu_settings":
+        uid_s = str(uid)[-4:]
+        await q.edit_message_text(
+            "*⚙️ AJUSTES — NEXUS AI*\n\n"
+            f"```\n"
+            f"  UID             : ***{uid_s}\n"
+            f"  Moneda base     : USD\n"
+            f"  Idioma          : Español\n"
+            f"  Alertas         : Activadas\n"
+            f"  Actualización   : 30 s\n"
+            f"  Modelo IA       : NEXUS-GPT Quant v3.1\n"
+            f"  Notificaciones  : Push + Telegram\n"
+            f"  2FA             : Activado ✅\n"
+            f"  API Key         : nxs_***************{uid_s}\n"
+            f"```\n\n"
+            f"_Próximamente: webhooks, API REST y más\\._",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=back_kb()
+        )
+
+    # ── Acerca de (público) ─────────────────────────────────
+    elif data in ("menu_about_public", "menu_about"):
+        await q.edit_message_text(
+            "*ℹ️ NEXUS TRADING AI v3\\.1*\n\n"
+            "`Motor       : NEXUS-GPT Quant v3.1`\n"
+            "`Mercados    : 20 activos`\n"
+            "`Latencia    : < 15ms`\n"
+            "`Uptime      : 99.97%`\n"
+            "`Usuarios    : 24,812 activos`\n"
+            "`Win rate    : 83.4% promedio`\n\n"
+            "NEXUS combina redes neuronales LSTM\\, Transformers y "
+            "análisis cuantitativo para generar señales de alta precisión "
+            "en tiempo real sobre cripto\\, forex\\, acciones y commodities\\.\n\n"
+            "_⚠️ Bot con fines exclusivamente estéticos y educativos\\._\n"
+            "_No constituye asesoramiento financiero real\\._",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔐 Iniciar Sesión", callback_data="do_login")],
+                [InlineKeyboardButton("🔙 Volver",         callback_data="back_public")]
+            ])
+        )
+
+    elif data == "back_public":
+        await q.edit_message_text(
+            f"{SPLASH}\n\n"
+            "*Bienvenido a NEXUS Trading AI*\n\n"
+            "La plataforma de trading cuantitativo más avanzada del mercado\\.\n\n"
+            "🔐 _Inicia sesión para acceder a tu dashboard_",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=login_kb()
+        )
+
+    # ── Logout ──────────────────────────────────────────────
+    elif data == "do_logout":
+        SESSIONS.pop(uid, None)
+        await q.edit_message_text(
+            "🚪 *Sesión cerrada correctamente*\n\n"
+            "_Hasta pronto\\. Tus datos han sido guardados\\._\n\n"
+            f"{SPLASH}",
+            parse_mode=ParseMode.MARKDOWN_V2,
+            reply_markup=login_kb()
+        )
+
+
+# ══════════════════════════════════════════════════════════════
+#  COMANDOS ADICIONALES
+# ══════════════════════════════════════════════════════════════
+
+async def cmd_market(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    _tick()
+    await update.message.reply_text(market_snapshot(), parse_mode=ParseMode.MARKDOWN_V2,
+                                    reply_markup=market_kb())
+
+
+async def cmd_price(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if not ctx.args:
+        await update.message.reply_text("Uso: `/price BTC`", parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    sym = ctx.args[0].upper()
+    if sym not in ASSETS:
+        await update.message.reply_text(f"⚠️ Símbolo `{sym}` no encontrado\\.",
+                                        parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    _tick()
+    p, chg, pct = get_price(sym)
+    info  = ASSETS[sym]
+    sig   = ai_signal(sym)
+    pred  = prediction_ai(sym)
+    arrow = "🟢▲" if pct >= 0 else "🔴▼"
+    sp    = spark(pct >= 0)
+    msg   = (
+        f"*{info['emoji']} {info['name']} \\({sym}\\)*\n\n"
+        f"`Precio     : {fmt_price(sym,p)}`\n"
+        f"`Variación  : {chg:+.4f}  \\({pct:+.2f}%\\)`\n"
+        f"`Tendencia  : {arrow}`\n"
+        f"`Sparkline  : {sp}`\n\n"
+        f"*Señal IA:* `{sig['signal']}`  confianza `{sig['confidence']}%`\n"
+        f"*P\\&L est\\.:* `+${sig['pnl_pred']:.2f}`\n"
+        f"*Pred\\. 1D:* `{fmt_price(sym, pred['d1'])}`\n\n"
+        f"_Actualizado: {datetime.utcnow().strftime('%H:%M:%S')} UTC_"
+    )
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN_V2,
+                                    reply_markup=back_kb())
+
+
+async def cmd_signal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if not ctx.args:
+        await update.message.reply_text("Uso: `/signal ETH`", parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    sym = ctx.args[0].upper()
+    if sym not in ASSETS:
+        await update.message.reply_text(f"⚠️ Símbolo `{sym}` no encontrado\\.",
+                                        parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    _tick()
+    sig  = ai_signal(sym)
+    info = ASSETS[sym]
+    p, _, pct = get_price(sym)
+    bar  = trend_bar(abs(pct))
+    msg  = (
+        f"*🤖 SEÑAL IA — {info['emoji']} {sym}*\n\n"
+        f"*Señal:* `{sig['signal']}`  \\|  `{sig['confidence']}%`\n"
+        f"`{bar}`\n\n"
+        f"```\n"
+        f"  Precio actual : {fmt_price(sym,p)}\n"
+        f"  Take Profit 1 : {fmt_price(sym,sig['tp1'])}\n"
+        f"  Take Profit 2 : {fmt_price(sym,sig['tp2'])}\n"
+        f"  Stop Loss     : {fmt_price(sym,sig['sl'])}\n"
+        f"  P&L esperado  : +${sig['pnl_pred']:.2f}\n"
+        f"  RSI(14)       : {sig['rsi']}\n"
+        f"  MACD Hist     : {sig['macd_h']:+.3f}\n"
+        f"  ADX           : {sig['adx']}\n"
+        f"  Sentimiento   : {sig['sentiment']}\n"
+        f"```\n"
+        f"_⚠️ Solo informativo\\. No asesoramiento financiero\\._"
+    )
+    await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN_V2,
+                                    reply_markup=back_kb("menu_signals"))
+
+
+async def cmd_portfolio(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    uid = update.effective_user.id
+    if not get_session(uid):
+        await update.message.reply_text(
+            "🔐 Debes iniciar sesión\\. Usa `/start`\\.",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return
+    await update.message.reply_text(portfolio_text(uid),
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📂 Ver Operaciones", callback_data="menu_trades")],
+            [InlineKeyboardButton("🏠 Menú",            callback_data="back_main")]
+        ])
+    )
+
+
+async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if len(ctx.args) < 2:
+        await update.message.reply_text("Uso: `/alert BTC 70000`",
+                                        parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    sym = ctx.args[0].upper()
+    try:
+        target = float(ctx.args[1].replace(",", ""))
+    except ValueError:
+        await update.message.reply_text("⚠️ Precio inválido\\.", parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    if sym not in ASSETS:
+        await update.message.reply_text(f"⚠️ Símbolo `{sym}` no encontrado\\.",
+                                        parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    cur       = _prices[sym]
+    direction = "suba" if target > cur else "baje"
+    await update.message.reply_text(
+        f"✅ *Alerta configurada*\n\n"
+        f"```\n"
+        f"  Par     : {ASSETS[sym]['emoji']} {sym}\n"
+        f"  Trigger : {direction.upper()} a {target:,.4f}\n"
+        f"  Actual  : {fmt_price(sym, cur)}\n"
+        f"  Estado  : ACTIVA 🟢\n"
+        f"```\n"
+        f"_Recibirás notificación al cruzar el nivel\\._",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=back_kb()
+    )
+
+
+async def cmd_top(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    _tick()
+    data_list = [(sym, get_price(sym)[2]) for sym in ASSETS]
+    winners   = sorted(data_list, key=lambda x: x[1], reverse=True)[:5]
+    losers    = sorted(data_list, key=lambda x: x[1])[:5]
+    lines = ["```", "  🏆 TOP 5 GAINERS", "  " + "─" * 36]
+    for sym, pct in winners:
+        pnl = round(random.uniform(8, 450), 2)
+        lines.append(f"  {ASSETS[sym]['emoji']} {sym:<9}  ▲{pct:+.2f}%  +${pnl:.2f}")
+    lines += ["", "  💣 TOP 5 LOSERS", "  " + "─" * 36]
+    for sym, pct in losers:
+        lines.append(f"  {ASSETS[sym]['emoji']} {sym:<9}  ▼{abs(pct):.2f}%")
+    lines.append("```")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN_V2,
+                                    reply_markup=back_kb())
+
+
+async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    headlines = [
+        ("🔥", "Fed mantiene tasas; dólar sube con fuerza"),
+        ("₿",  "Bitcoin rompe $68K respaldado por ETF inflows"),
+        ("📊", "NVIDIA reporta beneficios históricos en Q1"),
+        ("🛢", "OPEC+ extiende recortes; petróleo escala a $84"),
+        ("🌍", "Tensiones en Oriente Medio impulsan precio del oro"),
+        ("⚡", "Tesla inaugura gigafactory; rally +5%"),
+        ("🤖", "Goldman Sachs: IA añadirá $7T al PIB en 10 años"),
+        ("📉", "Yen en mínimos históricos; Bank of Japan interviene"),
+        ("💡", "BlackRock lanza ETF de IA con $2.3B en activos"),
+        ("🏦", "BCE adelanta recorte de tasas para junio"),
+    ]
+    lines = ["*📰 MARKET NEWS — LIVE FEED*\n"]
+    for emoji, headline in random.sample(headlines, 6):
+        mins = random.randint(3, 95)
+        lines.append(f"{emoji} *{headline}*\n   _hace {mins} min_\n")
+    lines.append("_Fuente: NEXUS AI · Reuters · Bloomberg · CoinDesk_")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN_V2,
+                                    reply_markup=back_kb())
+
+
+async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        "*📖 NEXUS AI — COMANDOS*\n\n"
+        "`/start`           — Panel principal \\(login\\)\n"
+        "`/market`          — Vista global de mercados\n"
+        "`/price BTC`       — Precio \\+ señal \\+ predicción IA\n"
+        "`/signal ETH`      — Señal IA completa con indicadores\n"
+        "`/portfolio`       — Tu cartera con P\\&L\n"
+        "`/top`             — Mejores y peores del día\n"
+        "`/news`            — Últimas noticias de mercado\n"
+        "`/alert BTC 70000` — Crear alerta de precio\n"
+        "`/help`            — Esta ayuda\n\n"
+        "_Motor IA: NEXUS\\-GPT Quant v3\\.1_",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=back_kb()
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+#  HANDLER DE TEXTO LIBRE
+# ══════════════════════════════════════════════════════════════
+
+QUICK: dict[str, str] = {
+    "bitcoin":   "₿ Usa `/price BTC` para precio \\+ señal IA en tiempo real\\.",
+    "btc":       "₿ Usa `/price BTC` para precio \\+ señal IA en tiempo real\\.",
+    "ethereum":  "Ξ Usa `/price ETH` para precio y señal IA\\.",
+    "eth":       "Ξ Usa `/price ETH` para precio y señal IA\\.",
+    "señal":     "🤖 Usa `/signal SÍMBOLO` — ej: `/signal ETH`",
+    "señales":   "🤖 Usa `/signal SÍMBOLO` — ej: `/signal NVDA`",
+    "mercado":   "📊 Usa `/market` para el snapshot global\\.",
+    "portfolio": "💼 Usa `/portfolio` para tu cartera con P\\&L\\.",
+    "ayuda":     "Usa `/help` para todos los comandos\\.",
+    "hola":      "👋 ¡Hola\\! Soy *NEXUS AI*\\. Usa `/start` para comenzar\\.",
+    "noticias":  "📰 Usa `/news` para el feed de noticias\\.",
+    "top":       "🏆 Usa `/top` para ganadores y perdedores del día\\.",
+    "ganancia":  "💰 Mis predicciones IA tienen un win rate del 83\\.4%\\.",
+}
+
+async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    text = update.message.text.lower().strip()
+    for kw, reply in QUICK.items():
+        if kw in text:
+            await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN_V2)
+            return
+    for sym in ASSETS:
+        if sym.lower() in text:
+            _tick()
+            p, _, pct = get_price(sym)
+            info  = ASSETS[sym]
+            sig   = ai_signal(sym)
+            arrow = "🟢▲" if pct >= 0 else "🔴▼"
+            await update.message.reply_text(
+                f"{info['emoji']} *{info['name']}*: `{fmt_price(sym,p)}`  "
+                f"{arrow}`{pct:+.2f}%`\n"
+                f"Señal IA: `{sig['signal']}`  P\\&L est\\.: `+${sig['pnl_pred']:.2f}`",
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+            return
+    await update.message.reply_text(
+        "🤖 No entendí tu mensaje\\. Usa `/help` para ver los comandos\\.",
+        parse_mode=ParseMode.MARKDOWN_V2,
+        reply_markup=main_menu_kb()
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+#  TAREA PERIÓDICA
+# ══════════════════════════════════════════════════════════════
+
+async def periodic_tick(ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    _tick()
+
+
+# ══════════════════════════════════════════════════════════════
+#  ARRANQUE
+# ══════════════════════════════════════════════════════════════
+
+async def post_init(app: Application) -> None:
+    await app.bot.set_my_commands([
+        BotCommand("start",     "Panel principal (login)"),
+        BotCommand("market",    "Vista global de mercados"),
+        BotCommand("price",     "Precio + señal + predicción IA"),
+        BotCommand("signal",    "Señal IA completa"),
+        BotCommand("portfolio", "Tu cartera con P&L"),
+        BotCommand("top",       "Top ganadores y perdedores"),
+        BotCommand("news",      "Últimas noticias de mercado"),
+        BotCommand("alert",     "Crear alerta de precio"),
+        BotCommand("help",      "Ayuda y comandos"),
+    ])
+
+
+def main() -> None:
+    if BOT_TOKEN == "TU_TOKEN_AQUI":
+        print("⚠️  Edita BOT_TOKEN antes de ejecutar.")
+        print("    Obtén tu token en @BotFather → /newbot")
+        return
+
+    print("╔══════════════════════════════════════════╗")
+    print("║   NEXUS TRADING AI  v3.1  — Iniciando    ║")
+    print("╚══════════════════════════════════════════╝")
+
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .post_init(post_init)
+        .build()
+    )
+
+    # Tarea periódica de actualización de precios
+    app.job_queue.run_repeating(periodic_tick, interval=30, first=5)
+
+    # ConversationHandler para el flujo de login
+    login_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(cb_do_login, pattern="^do_login$")],
+        states={
+            ASK_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_password)],
+            ASK_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_password)],
+        },
+        fallbacks=[CommandHandler("cancel", cmd_cancel)],
+        per_message=False,
+    )
+
+    # Registro de handlers (orden importa)
+    app.add_handler(login_conv)
+    app.add_handler(CommandHandler("start",     cmd_start))
+    app.add_handler(CommandHandler("market",    cmd_market))
+    app.add_handler(CommandHandler("price",     cmd_price))
+    app.add_handler(CommandHandler("signal",    cmd_signal))
+    app.add_handler(CommandHandler("portfolio", cmd_portfolio))
+    app.add_handler(CommandHandler("top",       cmd_top))
+    app.add_handler(CommandHandler("news",      cmd_news))
+    app.add_handler(CommandHandler("alert",     cmd_alert))
+    app.add_handler(CommandHandler("help",      cmd_help))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    print("✅ Bot activo y escuchando. Ctrl+C para detener.\n")
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
+
